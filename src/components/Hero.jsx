@@ -12,9 +12,9 @@ const Hero = () => {
   const [isFinished, setIsFinished] = useState(false);
   const [userInput, setUserInput] = useState("");
   const [activeKey, setActiveKey] = useState("");
-  const [duration, setDuration] = useState(60); // Default duration
+  const [duration, setDuration] = useState(60); 
   const [timeLeft, setTimeLeft] = useState(60);
-  const [isStarted, setIsStarted] = useState(false); // Changed to false
+  const [isStarted, setIsStarted] = useState(false); 
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
   const [lastWrongKey, setLastWrongKey] = useState(null);
@@ -39,6 +39,7 @@ const Hero = () => {
       setUsername(loginInput);
     }
   };
+
   const handleTimeChange = (newTime) => {
     if (!isStarted) {
       setDuration(newTime);
@@ -76,7 +77,7 @@ const Hero = () => {
 
         setUserInput((prev) => {
           const nextInput = prev + pressedKey;
-          if (nextInput.length === text.length) {
+          if (nextInput.length >= text.length) {
             setIsFinished(true);
             setIsStarted(false);
           }
@@ -94,46 +95,47 @@ const Hero = () => {
     };
   }, [userInput, isStarted, timeLeft, isFinished, text]);
 
+  // AUTO SCROLL
   useEffect(() => {
     if (activeCharRef.current) {
-      activeCharRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center', // Keeps the active line in the middle of the box
-      });
+      activeCharRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [userInput]); // Runs every time the user types
+  }, [userInput]);
 
-  // 2. TIMER LOGIC (Fixed)
+  // 2. TIMER LOGIC 
   useEffect(() => {
     if (isStarted && timeLeft > 0) {
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else if (timeLeft === 0 || isFinished) {
-      clearInterval(timerRef.current);
+    } else if (timeLeft === 0) {
       setIsFinished(true);
       setIsStarted(false);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
-    return () => clearInterval(timerRef.current);
-  }, [isStarted, timeLeft, isFinished]);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [isStarted, timeLeft]);
 
   // 3. STATS LOGIC
   useEffect(() => {
-    if (userInput.length > 0) {
+    if (userInput.length > 0 && isStarted) {
+      const secondsElapsed = duration - timeLeft;
+      
+      if (secondsElapsed > 0) {
+        const minutesElapsed = secondsElapsed / 60;
+        const totalStandardWords = userInput.length / 5;
+        const currentWpm = Math.floor(totalStandardWords / minutesElapsed);
+        setWpm(currentWpm);
+      }
+
       const correctChars = userInput.split('').filter((char, i) => char === text[i]).length;
       setAccuracy(Math.floor((correctChars / userInput.length) * 100));
-      const timeElapsed = (60 - timeLeft) / 60;
-      if (timeElapsed > 0) {
-        setWpm(Math.floor((userInput.length / 5) / timeElapsed));
-      }
     }
-  }, [userInput, timeLeft, text]);
-
+  }, [userInput, timeLeft, duration, isStarted]);
 
   const handleRestart = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = null;
-    setTimeLeft(duration); // Use the duration state here
+    setTimeLeft(duration);
     setIsStarted(false);
     setIsFinished(false);
     setUserInput("");
@@ -176,10 +178,7 @@ const Hero = () => {
               <button
                 key={t}
                 onClick={() => handleTimeChange(t)}
-                className={`px-4 py-1 rounded-xl font-bold transition-all ${duration === t
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-gray-400 hover:bg-gray-100"
-                  }`}
+                className={`px-4 py-1 rounded-xl font-bold transition-all ${duration === t ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:bg-gray-100"}`}
               >
                 {t}s
               </button>
@@ -187,7 +186,6 @@ const Hero = () => {
           </div>
         )}
 
-        {/* TEXT BOX - Added max-height and scrolling to prevent elongation */}
         <div className="w-full max-w-4xl bg-white p-8 shadow-md text-2xl leading-relaxed tracking-widest text-gray-400 relative rounded-xl max-h-[150px] overflow-y-auto scroll-smooth">
           <div className={`absolute top-2 right-4 text-white text-[10px] font-bold px-2 py-1 rounded ${isStarted ? 'bg-blue-600' : 'bg-gray-400'}`}>
             {isStarted ? "TYPING..." : "READY"}
@@ -197,18 +195,11 @@ const Hero = () => {
             {text.split("").map((char, index) => {
               let color = "text-gray-400";
               let isCurrent = index === userInput.length;
-
               if (index < userInput.length) {
                 color = userInput[index] === char ? "text-blue-500" : "text-red-500 underline decoration-red-500";
               }
-
               return (
-                <span
-                  key={index}
-                  // 1. ATTACH THE REF HERE
-                  ref={isCurrent ? activeCharRef : null}
-                  className={`${color} ${isCurrent ? "bg-blue-100 border-b-2 border-blue-500" : ""}`}
-                >
+                <span key={index} ref={isCurrent ? activeCharRef : null} className={`${color} ${isCurrent ? "bg-blue-100 border-b-2 border-blue-500" : ""}`}>
                   {char}
                 </span>
               );
@@ -216,11 +207,7 @@ const Hero = () => {
           </p>
         </div>
 
-        <VirtualKeyboard
-          activeKey={activeKey}
-          nextKey={text[userInput.length]?.toUpperCase()}
-          lastWrongKey={lastWrongKey}
-        />
+        <VirtualKeyboard activeKey={activeKey} nextKey={text[userInput.length]?.toUpperCase()} lastWrongKey={lastWrongKey} />
       </main>
     </div>
   );
